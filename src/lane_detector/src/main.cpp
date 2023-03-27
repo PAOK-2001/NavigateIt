@@ -49,6 +49,7 @@ int main(int argc, char** argv){
             lanes.find_lanes();
             // Find center of previously calculated lanes
             lanes.find_center();
+            lanes.predict_center();
             // Overlap lanes on the video
             lanes.display(frame);
             msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();

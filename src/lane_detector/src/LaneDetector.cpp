@@ -2,6 +2,7 @@
 #define LANEDETECTOR_CPP
 
 #include <bits/stdc++.h>
+#include "opencv2/video/tracking.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc.hpp"
@@ -11,12 +12,13 @@ using namespace cv;
 
 class LaneDetector{
     private:
+        KalmanFilter center_estimator;
         // Images states used in lane detection
-        Mat edgeImg, lineImg;
+        Mat edgeImg, lineImg, predictedCenter;
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
         Vec4i leftLine, rightLine;
         // Coordinate that represents the senter of given lane
-        Point center;
+        Point2f center;
         // Auxiliary functions
         static pair<float,float> linear_fit(Vec4i lineCoordinates); 
         static float average_coheficient(vector<float> registeredCoheficients);
@@ -24,14 +26,34 @@ class LaneDetector{
 
     public:
         LaneDetector();
+        void init_kf();
         void load_frame(Mat cameraFrame);
         void find_lanes();
         void find_center();
+        void predict_center();
         void display(Mat cameraFrame);
 };
 
 // Default constructor of lane detector
 LaneDetector::LaneDetector(){
+
+}
+
+void LaneDetector::init_kf(){
+    center_estimator = KalmanFilter(2,1,0);
+    setIdentity(center_estimator.measurementMatrix);
+    setIdentity(center_estimator.processNoiseCov, Scalar::all(1e-5));
+    setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-1));
+    setIdentity(center_estimator.errorCovPost, Scalar::all(1));
+}
+
+void LaneDetector::predict_center(){
+    cv::Mat measurement(2, 1, CV_32F);
+    measurement.at<float>(0) = center.x;
+    measurement.at<float>(1) = center.y;
+    center_estimator.correct(measurement);
+    predictedCenter = center_estimator.predict();
+    
 }
 // Find slope (rise/run) and intercept (b=y-slope(x)) given end coordinates
 // @param Vec4i containing line end points (x1,y1,x2,y2)
