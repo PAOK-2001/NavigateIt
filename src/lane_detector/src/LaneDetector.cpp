@@ -14,11 +14,11 @@ class LaneDetector{
     private:
         KalmanFilter center_estimator;
         // Images states used in lane detection
-        Mat edgeImg, lineImg, predictedCenter;
+        Mat edgeImg, lineImg;
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
         Vec4i leftLine, rightLine;
         // Coordinate that represents the senter of given lane
-        Point2f center;
+        Point2f center, predictedCenter;
         // Auxiliary functions
         static pair<float,float> linear_fit(Vec4i lineCoordinates); 
         static float average_coheficient(vector<float> registeredCoheficients);
@@ -52,8 +52,8 @@ void LaneDetector::predict_center(){
     measurement.at<float>(0) = center.x;
     measurement.at<float>(1) = center.y;
     center_estimator.correct(measurement);
-    predictedCenter = center_estimator.predict();
-    
+    Mat predictedState = center_estimator.predict();
+    predictedCenter = Point2f(predictedState.at<float>(0), predictedState.at<float>(1));
 }
 // Find slope (rise/run) and intercept (b=y-slope(x)) given end coordinates
 // @param Vec4i containing line end points (x1,y1,x2,y2)
@@ -174,6 +174,7 @@ void LaneDetector::find_center(){
 // Displays detected lanes unto a given image
 // @param frame to draw lanes unto.
 void LaneDetector::display(Mat cameraFrame){
+    circle(lineImg,predictedCenter,15,Scalar(0,255,0),-1);
     // Blend the lineImg of detected frame with camera feed for live visualization
     addWeighted(cameraFrame,1,lineImg,0.4,0,cameraFrame);
     namedWindow("Lane Detector");
