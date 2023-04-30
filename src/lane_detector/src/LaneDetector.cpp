@@ -17,15 +17,18 @@ class LaneDetector{
         Mat edgeImg, lineImg;
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
         Vec4i leftLine, rightLine;
-        // Coordinate that represents the senter of given lane
+        // Coordinate that represents the center of given lane
         Point2f center, predictedCenter;
+        //Frame dimensions
+        int width, height;
         // Auxiliary functions
         static pair<float,float> linear_fit(Vec4i lineCoordinates); 
-        static float average_coheficient(vector<float> registeredCoheficients);
-        static Vec4i make_coordinate(float slope, float intercept, int imgHeight);
+        static float average_coefficient(vector<float> registeredCoefficients);
+        static Vec4i make_coordinate(float slope, float intercept, int imgHeight, int imgWidth);
 
     public:
         LaneDetector();
+        LaneDetector(Mat initFrame);
         void init_kf();
         void load_frame(Mat cameraFrame);
         void find_lanes();
@@ -36,11 +39,17 @@ class LaneDetector{
 
 // Default constructor of lane detector
 LaneDetector::LaneDetector(){
+    init_kf();
+}
 
+LaneDetector::LaneDetector(Mat initFrame){
+    width = initFrame.cols;
+    height = initFrame.rows;
+    init_kf();
 }
 
 void LaneDetector::init_kf(){
-    center_estimator = KalmanFilter(2,1,0);
+    center_estimator = KalmanFilter(2,2);
     setIdentity(center_estimator.measurementMatrix);
     setIdentity(center_estimator.processNoiseCov, Scalar::all(1e-5));
     setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-1));
@@ -49,11 +58,11 @@ void LaneDetector::init_kf(){
 
 void LaneDetector::predict_center(){
     cv::Mat measurement(2, 1, CV_32F);
-    measurement.at<float>(0) = center.x;
-    measurement.at<float>(1) = center.y;
+    measurement.at<float>(0) = max(center.x - width/2, 0.0f);
+    measurement.at<float>(1) = max(center.y - height/2, 0.0f);
     center_estimator.correct(measurement);
     Mat predictedState = center_estimator.predict();
-    predictedCenter = Point2f(predictedState.at<float>(0), predictedState.at<float>(1));
+    predictedCenter = Point2f(predictedState.at<float>(0) + width/2, predictedState.at<float>(1) + height/2);
 }
 // Find slope (rise/run) and intercept (b=y-slope(x)) given end coordinates
 // @param Vec4i containing line end points (x1,y1,x2,y2)
@@ -65,34 +74,34 @@ pair<float,float> LaneDetector::linear_fit(Vec4i lineCoordinates){
 }
 
 // Find the average from a vector of cohedicientes
-// @param registerCoheficients Vector of floats
+// @param registerCoefficients Vector of floats
 // @return avrg float representing average of vector. Retuns 0 if empty
-float LaneDetector::average_coheficient(vector<float> registeredCoheficients){
+float LaneDetector::average_coefficient(vector<float> registeredCoefficients){
     float size, sum;
-    size = registeredCoheficients.size();
+    size = registeredCoefficients.size();
     if(size == 0){
         return 0;
     }
-    for(auto & num: registeredCoheficients){
+    for(auto & num: registeredCoefficients){
         sum+=num;
     }
     float avrg = sum/(float)size;
     return avrg;
 }
 
-// computes coordinate based on slope and intercpet of line equation
+// computes coordinate based on slope and intercept of line equation
 // @param slope, intercept float representing linear equation values
 // @return coordinates Vec4i in format [x1,y1,x2,y2]
-Vec4i LaneDetector::make_coordinate(float slope, float intercept, int imgHeight){
+Vec4i LaneDetector::make_coordinate(float slope, float intercept, int imgHeight, int imgWidth){
     int x1, y1, x2, y2;
     // Set default hight to bottom of image, assuming the hood of car isn't in frame
     y1 = imgHeight;
     // Second height is arbitrary value, depending on how far we want to visualize lanes.
     // #Note: there is a limit into how far the lane curvature holds.
     y2 = round(imgHeight*(1.0/1.43));
-    // Calculate x coordinates solving in linea eq .y = mx+b---> x = y-b/m
-    x1 = round((y1-intercept)/slope);
-    x2 = round((y2-intercept)/slope);
+    // Calculate x coordinates solving in line eq. y = mx+b---> x = (y-b)/m making sure they are in the image
+    x1 = min(max(0.0f, round((y1-intercept)/slope)), (float)imgWidth);
+    x2 = min(max(0.0f, round((y2-intercept)/slope)), (float)imgWidth);
     // Build line coordinated structure
     Vec4i returnCoordinates = {x1,y1,x2,y2};
     return returnCoordinates;
@@ -137,7 +146,7 @@ void LaneDetector::find_lanes(){
         pair<float, float> fit =linear_fit(lineP);
         // Exclude outliers.
         if(fit.first == 0){
-            ;
+            continue;
         }
         // Seperate left lane (negative slope)
         else if(fit.first<0){
@@ -151,13 +160,13 @@ void LaneDetector::find_lanes(){
         }
     }
     // For each side, find average lane
-    float rightSlope     = average_coheficient(rightSide_slopes);
-    float rightIntercept = average_coheficient(rightSide_intercepts);
-    float leftSlope      = average_coheficient(leftSide_slopes);
-    float leftIntercept  = average_coheficient(leftSide_intercepts);
+    float rightSlope     = average_coefficient(rightSide_slopes);
+    float rightIntercept = average_coefficient(rightSide_intercepts);
+    float leftSlope      = average_coefficient(leftSide_slopes);
+    float leftIntercept  = average_coefficient(leftSide_intercepts);
     // Make coordinates for final lanes
-    leftLine  = make_coordinate(leftSlope, leftIntercept, edgeImg.rows);
-    rightLine = make_coordinate(rightSlope, rightIntercept, edgeImg.rows);
+    leftLine  = make_coordinate(leftSlope, leftIntercept, height, width);
+    rightLine = make_coordinate(rightSlope, rightIntercept, height, width);
     // Draw line on lineImg
     line(lineImg,Point(leftLine[0],leftLine[1]),Point(leftLine[2],leftLine[3]),Scalar(255,255,0),15);
     line(lineImg,Point(rightLine[0],rightLine[1]),Point(rightLine[2],rightLine[3]),Scalar(0,255,0),15);
