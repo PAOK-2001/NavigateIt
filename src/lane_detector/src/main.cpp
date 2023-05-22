@@ -21,21 +21,22 @@ int main(int argc, char** argv){
     ros::NodeHandle handler;
     image_transport::ImageTransport imageHandler(handler);
     image_transport::Publisher videoPub = imageHandler.advertise("video", 5); 
-    LaneDetector lanes;
     Mat frame;
     sensor_msgs::ImagePtr msg;
     // Create VideoCapture object
     int test;
     cout<<"Choose number of test footage to use\n";
     cin>>test;
-    string path = "Test_Footage/Test"+to_string(test)+".mp4";
-    cout << path;
+    string path = "src/lane_detector/src/Test_Footage/Test"+to_string(test)+".mp4";
+    cout << path << "\n";
     VideoCapture dashCam(path);
     // Check if the dashCam is readable
     if(!dashCam.isOpened()){
         cout<<"Error reading dashCam feed\n";
         return -1;
     }
+    dashCam.read(frame);
+    LaneDetector lanes(frame);
     while(handler.ok()){
         dashCam.read(frame);
         // Check if selected source is sending information
@@ -50,6 +51,7 @@ int main(int argc, char** argv){
             // Find center of previously calculated lanes
             lanes.find_center();
             // Overlap lanes on the video
+            lanes.predict_center();
             lanes.display(frame);
             msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
             videoPub.publish(msg);
