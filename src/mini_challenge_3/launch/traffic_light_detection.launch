@@ -1,0 +1,10 @@
+<launch>
+    <rosparam file = "$(find mini_challenge_2)/config/robot_params.yaml" command = "load"/>
+    <rosparam file = "$(find mini_challenge_2)/config/path.yaml" command = "load"/>
+    <rosparam file = "$(find mini_challenge_2)/config/control.yaml" command = "load"/>
+    
+    <node name="path_generator"     pkg="mini_challenge_1" type="path_generator"   output="screen"/>
+    <node name="closed_loop_traffic" pkg="mini_challenge_3" type="closed_loop_traffic"  output="screen"/> 
+    <node name="light_classifier" pkg="mini_challenge_3" type="yolo-detector.py"  output="screen"/>
+
+</launch>
