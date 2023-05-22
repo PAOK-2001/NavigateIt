@@ -23,13 +23,8 @@ int main(int argc, char** argv){
     image_transport::Publisher videoPub = imageHandler.advertise("video", 5); 
     Mat frame;
     sensor_msgs::ImagePtr msg;
-    // Create VideoCapture object
-    int test;
-    cout<<"Choose number of test footage to use\n";
-    cin>>test;
-    string path = "src/lane_detector/src/Test_Footage/Test"+to_string(test)+".mp4";
-    cout << path << "\n";
-    VideoCapture dashCam(path);
+    string  cam_port =  'nvarguscamerasrc !  video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=60/1 ! nvvidconv flip-method=0 ! video/x-raw, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink drop=true';
+    VideoCapture dashCam(cam_port);
     // Check if the dashCam is readable
     if(!dashCam.isOpened()){
         cout<<"Error reading dashCam feed\n";
