@@ -34,24 +34,17 @@ int main(int argc, char** argv){
     LaneDetector lanes(frame);
     while(handler.ok()){
         dashCam.read(frame);
-        // Check if selected source is sending information
         if(frame.empty()){
             cout<<"NULL frame ";
             
         }else{
-            // Load image into lane detector
             lanes.load_frame(frame);
-            // Find lanes on given frame
             lanes.find_lanes();
-            // Find center of previously calculated lanes
             lanes.find_center();
-            // Overlap lanes on the video
             lanes.predict_center();
             lanes.display(frame);
             msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
             videoPub.publish(msg);
-            // Wait 5 miliseconds
-            // Read key board input, setting esc as break key
             if(waitKey(5)== 27){
                 break;
             }

@@ -121,6 +121,11 @@ void LaneDetector::load_frame(Mat cameraFrame){
 }
 
 void LaneDetector::find_lanes(){
+    // Masking to exclude ROI
+    Mat mask = edgeImg.clone();
+    mask     = Scalar(0,0,0);
+    lineImg  = mask;
+    cvtColor(lineImg,lineImg,COLOR_GRAY2BGR);
     // Find all lines in frame using HoughLinesP
     vector<Vec4i> lines;
     // Uses HoughTransform to fine most lines in canny image.
@@ -168,6 +173,7 @@ void LaneDetector::find_center(){
 // Displays detected lanes unto a given image
 // @param frame to draw lanes unto.
 void LaneDetector::display(Mat cameraFrame){
+
     circle(lineImg,predictedCenter,15,Scalar(0,255,0),-1);
     // Blend the lineImg of detected frame with camera feed for live visualization
     addWeighted(cameraFrame,1,lineImg,0.4,0,cameraFrame);
