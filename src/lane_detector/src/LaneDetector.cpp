@@ -52,7 +52,7 @@ void LaneDetector::init_kf(){
     center_estimator = KalmanFilter(2,2);
     setIdentity(center_estimator.measurementMatrix);
     setIdentity(center_estimator.processNoiseCov, Scalar::all(1e-5));
-    setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-1));
+    setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-3));
     setIdentity(center_estimator.errorCovPost, Scalar::all(1));
 }
 

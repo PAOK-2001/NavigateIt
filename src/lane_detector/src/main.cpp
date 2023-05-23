@@ -15,25 +15,23 @@
 using namespace std;
 using namespace cv;
 
+sensor_msgs::ImagePtr curFrame;
+
+void receive_img(sensor_msgs::ImagePtr &img) {
+    curFrame = img;
+}
+
 int main(int argc, char** argv){
     // ROS initialization
     ros::init(argc, argv, "lane_detector");
     ros::NodeHandle handler;
     image_transport::ImageTransport imageHandler(handler);
-    image_transport::Publisher videoPub = imageHandler.advertise("video", 5); 
-    Mat frame;
-    sensor_msgs::ImagePtr msg;
-    string  cam_port =  "nvarguscamerasrc !  video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=60/1 ! nvvidconv flip-method=0 ! video/x-raw, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink drop=true";
-    VideoCapture dashCam(cam_port);
-    // Check if the dashCam is readable
-    if(!dashCam.isOpened()){
-        cout<<"Error reading dashCam feed\n";
-        return -1;
-    }
-    dashCam.read(frame);
+
+    image_transport::Subscriber camSub = imageHandler.subscribe("/dash_cam", 10, receive_img);
+    Mat frame = cv_bridge::toCvCopy(curFrame)->image;
     LaneDetector lanes(frame);
     while(handler.ok()){
-        dashCam.read(frame);
+        // Check if selected source is sending information
         if(frame.empty()){
             cout<<"NULL frame ";
             
@@ -43,8 +41,8 @@ int main(int argc, char** argv){
             lanes.find_center();
             lanes.predict_center();
             lanes.display(frame);
-            msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
-            videoPub.publish(msg);
+            // Wait 5 miliseconds
+            // Read key board input, setting esc as break key
             if(waitKey(5)== 27){
                 break;
             }
