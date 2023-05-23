@@ -15,27 +15,31 @@
 using namespace std;
 using namespace cv;
 
-sensor_msgs::ImagePtr curFrame;
+int nodeRate = 15;
+Mat frame, msg;
 
-void receive_img(sensor_msgs::ImagePtr &img) {
-    curFrame = img;
+void receive_img(const sensor_msgs::ImageConstPtr &img) {
+    msg = cv_bridge::toCvShare(img,"bgr8")->image;
+    frame = msg.clone();
 }
 
 int main(int argc, char** argv){
     // ROS initialization
     ros::init(argc, argv, "lane_detector");
     ros::NodeHandle handler;
+    ros::Rate rate(nodeRate);
+
     image_transport::ImageTransport imageHandler(handler);
 
-    image_transport::Subscriber camSub = imageHandler.subscribe("/dash_cam", 10, receive_img);
-    Mat frame = cv_bridge::toCvCopy(curFrame)->image;
+    image_transport::Subscriber camSub = imageHandler.subscribe("/video_source/dash_cam", 10, receive_img);
+    while(frame.empty()){ros::spinOnce();}
     LaneDetector lanes(frame);
-    while(handler.ok()){
-        // Check if selected source is sending information
+    while(handler.ok()&& ros::ok()){	
+	    // Check if selected source is sending information
         if(frame.empty()){
-            cout<<"NULL frame ";
-            
-        }else{
+            cout<<"NULL frame ";   
+        }
+        else{
             lanes.load_frame(frame);
             lanes.find_lanes();
             lanes.find_center();
@@ -43,10 +47,12 @@ int main(int argc, char** argv){
             lanes.display(frame);
             // Wait 5 miliseconds
             // Read key board input, setting esc as break key
-            if(waitKey(5)== 27){
+            if(waitKey(1)== 27){
                 break;
             }
         }
+        ros::spinOnce();
+        rate.sleep();	
     }
     return 0;
 }

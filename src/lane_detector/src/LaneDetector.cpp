@@ -16,7 +16,7 @@ class LaneDetector{
         // Images states used in lane detection
         Mat edgeImg, lineImg;
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
-        Vec4i leftLine, rightLine;
+        Vec4i centerLine;
         // Coordinate that represents the center of given lane
         Point2f center, predictedCenter;
         //Frame dimensions
@@ -98,7 +98,7 @@ Vec4i LaneDetector::make_coordinate(float slope, float intercept, int imgHeight,
     y1 = imgHeight;
     // Second height is arbitrary value, depending on how far we want to visualize lanes.
     // #Note: there is a limit into how far the lane curvature holds.
-    y2 = round(imgHeight*(1.0/1.43));
+    y2 = round(imgHeight*(1.0/1.2));
     // Calculate x coordinates solving in line eq. y = mx+b---> x = (y-b)/m making sure they are in the image
     x1 = min(max(0.0f, round((y1-intercept)/slope)), (float)imgWidth);
     x2 = min(max(0.0f, round((y2-intercept)/slope)), (float)imgWidth);
@@ -110,62 +110,50 @@ Vec4i LaneDetector::make_coordinate(float slope, float intercept, int imgHeight,
 // loads a frame and apply preprocessiong tecnques as well as masking to crop region of interest where lanes are
 // @param cameraFrame OpenCV image matrix
 void LaneDetector::load_frame(Mat cameraFrame){
-    // Image preprocessing code to load camera feed
-    // Saturate image
-    cameraFrame = cameraFrame*1.20;
-    // Convert to grayscale
-    Mat grayScale;
+    Mat grayScale, thresholded;
     cvtColor(cameraFrame,grayScale,COLOR_BGR2GRAY);
-    // Canny edge detection
-    Canny(grayScale,edgeImg,40,150);
+    threshold(grayScale, thresholded, 75, 255, THRESH_BINARY_INV);
+    Canny(thresholded,edgeImg,40,150);
 }
 
 void LaneDetector::find_lanes(){
-    // Masking to exclude ROI
     Mat mask = edgeImg.clone();
     mask     = Scalar(0,0,0);
     lineImg  = mask;
+
     cvtColor(lineImg,lineImg,COLOR_GRAY2BGR);
-    // Find all lines in frame using HoughLinesP
+    Point p1 = Point(99,719);
+    Point p2 = Point(99,450);
+    Point p3 = Point(249,359);
+    Point p4 = Point(1029,359);
+    Point p5 = Point(1179,450);
+    Point p6 = Point(1179,719);
+    vector<Point> ROI ={p1,p2,p3,p4,p5,p6};
+    fillPoly(mask,ROI,(255,255,255));
+    bitwise_and(mask,edgeImg,edgeImg);
     vector<Vec4i> lines;
     // Uses HoughTransform to fine most lines in canny image.
-    HoughLinesP(edgeImg,lines,2,CV_PI/180,200,40,5);
+    HoughLinesP(edgeImg,lines,2,CV_PI/180,190,15,5);
     // Find regression for lines
-    vector<float> rightSide_slopes, rightSide_intercepts, leftSide_slopes,leftSide_intercepts;
+    vector<float> slopes, intercepts;
     for(auto &lineP: lines){
         pair<float, float> fit =linear_fit(lineP);
-        // Exclude outliers.
-        if(fit.first == 0){
-            continue;
-        }
-        // Seperate left lane (negative slope)
-        else if(fit.first<0){
-            leftSide_slopes.push_back(fit.first);
-            leftSide_intercepts.push_back(fit.second);
-        }
-        // Separate right lane (positive slope)
-        else{
-            rightSide_slopes.push_back(fit.first);
-            rightSide_intercepts.push_back(fit.second);
-        }
+        slopes.push_back(fit.first);
+        intercepts.push_back(fit.second);
     }
     // For each side, find average lane
-    float rightSlope     = average_coefficient(rightSide_slopes);
-    float rightIntercept = average_coefficient(rightSide_intercepts);
-    float leftSlope      = average_coefficient(leftSide_slopes);
-    float leftIntercept  = average_coefficient(leftSide_intercepts);
+    float averageSlope     = average_coefficient(slopes);
+    float averageIntercept = average_coefficient(intercepts);
     // Make coordinates for final lanes
-    leftLine  = make_coordinate(leftSlope, leftIntercept, height, width);
-    rightLine = make_coordinate(rightSlope, rightIntercept, height, width);
+    centerLine = make_coordinate(averageSlope, averageIntercept, height, width);
     // Draw line on lineImg
-    line(lineImg,Point(leftLine[0],leftLine[1]),Point(leftLine[2],leftLine[3]),Scalar(255,255,0),15);
-    line(lineImg,Point(rightLine[0],rightLine[1]),Point(rightLine[2],rightLine[3]),Scalar(0,255,0),15);
+    line(lineImg,Point(centerLine[0],centerLine[1]),Point(centerLine[2],centerLine[3]),Scalar(255,255,0),15);
 }
 
 //Find center given the two lanes.
 void LaneDetector::find_center(){
-    float x = leftLine[2]+((rightLine[2]-leftLine[2])/2.0);
-    float y = (rightLine[3]);
+    float x = centerLine[2];
+    float y = centerLine[3];
     center = Point(x,y);
     circle(lineImg,center,15,Scalar(0,0,255),-1);
 }

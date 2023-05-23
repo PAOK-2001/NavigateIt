@@ -13,5 +13,6 @@
 		<param name="loop" value="$(arg input_loop)"/>
 		<param name="flip" value="none"/>
 	</node>
+	<node pkg="lane_detector" type="lane_detector" name="lane_detector" output="screen"/>
 
 </launch>
