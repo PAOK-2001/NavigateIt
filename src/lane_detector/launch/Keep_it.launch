@@ -1,3 +1,17 @@
 <launch>
-    <node name="lane_detect" pkg="lane_detector" type="lane_detector" output="screen"/>
+	<arg name="input" default="csi://0"/>
+	<arg name="input_width" default="1280"/>
+	<arg name="input_height" default="720"/>
+	<arg name="input_codec" default="unknown"/>
+	<arg name="input_loop" default="0"/>
+
+
+	<node pkg="lane_detector" type="video_source" name="video_source" output="screen">
+		<param name="resource" value="$(arg input)"/>
+		<param name="width" value="$(arg input_width)"/>
+		<param name="height" value="$(arg input_height)"/>
+		<param name="loop" value="$(arg input_loop)"/>
+		<param name="flip" value="none"/>
+	</node>
+
 </launch>

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(lane_detector)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,20 +13,28 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   std_msgs
+  vision_msgs
   image_transport
 )
-
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV 4.2.0 REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(jetson-utils REQUIRED)
+find_package(jetson-inference REQUIRED)
+find_package(CUDA REQUIRED)
+include_directories(${catkin_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
 
+link_directories(/usr/lib/aarch64-linux-gnu/tegra)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
 # catkin_python_setup()
+
+add_definitions(-DROS1 -DROS_DISTRO=${ROS_DISTRO})
+set(common_src src/image_converter.cpp src/ros_compat.cpp)
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -142,6 +150,8 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/lane_detector_node.cpp)
 add_executable(lane_detector src/main.cpp)
 target_link_libraries(lane_detector ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(video_source src/node_video_source.cpp ${common_src})
+target_link_libraries(video_source ${catkin_LIBRARIES} jetson-inference)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
