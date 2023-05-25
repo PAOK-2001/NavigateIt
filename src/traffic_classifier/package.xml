@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>mini_challenge_3</name>
+  <name>traffic_classifier</name>
   <version>0.0.0</version>
-  <description>The mini_challenge_3 package</description>
+  <description>The traffic_classifier package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->

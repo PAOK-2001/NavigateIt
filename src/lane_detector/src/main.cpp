@@ -6,6 +6,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
+#include <std_msgs/Float32.h>
 // OpenCV libraries
 #include "opencv2/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -17,6 +18,7 @@ using namespace cv;
 
 int nodeRate = 15;
 Mat frame, msg;
+std_msgs::Float32 output;
 
 void receive_img(const sensor_msgs::ImageConstPtr &img) {
     msg = cv_bridge::toCvShare(img,"bgr8")->image;
@@ -28,25 +30,23 @@ int main(int argc, char** argv){
     ros::init(argc, argv, "lane_detector");
     ros::NodeHandle handler;
     ros::Rate rate(nodeRate);
-
+    ros::Publisher pixelsToCenter = handler.advertise<std_msgs::Float32>("/line_error", 10);
     image_transport::ImageTransport imageHandler(handler);
 
     image_transport::Subscriber camSub = imageHandler.subscribe("/video_source/dash_cam", 10, receive_img);
     while(frame.empty()){ros::spinOnce();}
     LaneDetector lanes(frame);
     while(handler.ok()&& ros::ok()){	
-	    // Check if selected source is sending information
         if(frame.empty()){
             cout<<"NULL frame ";   
         }
         else{
             lanes.load_frame(frame);
             lanes.find_lanes();
-            lanes.find_center();
             lanes.predict_center();
             lanes.display(frame);
-            // Wait 5 miliseconds
-            // Read key board input, setting esc as break key
+            output.data = lanes.getWidth()/2-lanes.getCenterx();
+            pixelsToCenter.publish(output);
             if(waitKey(1)== 27){
                 break;
             }

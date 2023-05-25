@@ -1,19 +1,25 @@
 #!/usr/bin/env python
 
+import rospy 
+from std_msgs.msg import String
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 import cv2
 import numpy as np
-import rospy 
-from std_msgs.msg import String 
 
 class LightDetector:
         def __init__(self, use_cuda):
+            rospy.init_node("traffic_monitor")
             self.light_publisher = rospy.Publisher("/traffic_light", String, queue_size=1)
+            self.img_bridge = CvBridge()
+            self.rate = rospy.Rate(15)
+            rospy.Subscriber("/video_source/dash_cam", Image, self.receive_img)
             self._input_width = 640
             self._input_height = 640
             self._threshold = [0.2,0.4,0.4] # score, nms, confidence
-            self._classes = ['changing-gy', 'changing-rg', 'changing-ry', 'traffic-green', 'traffic-red', 'traffic-yellow']                                                                                  
-            self._display_colors = [(255, 255, 0), (0, 255, 0), (0, 255, 255), (0, 255, 0),(0,0,255),(0,128,128)]
-            self.classifier = cv2.dnn.readNetFromONNX("/home/puzzlebot/best.onnx")
+            self._classes = ['changing-gy', 'changing-rg', 'changing-ry', 'forward', 'line', 'stop', 'traffic-green', 'traffic-red', 'traffic-yellow', 'turn-right']                                                                                  
+            self._display_colors = [(0, 0, 0), (0, 0, 0), (0, 0, 0), (255, 255, 255),(100,100,100),(0,0,128),(0,255,0),(0,0,255),(0,255,255),(255,0,0)]
+            self.classifier = cv2.dnn.readNetFromONNX("/home/puzzlebot/traffic-v2.onnx")
             self.prev_color = 3
             if use_cuda:
                 print("Running classifier on CUDA")
@@ -24,6 +30,10 @@ class LightDetector:
                 self.classifier.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
                 self.classifier.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
             
+        def receive_img(self, img):
+            cam = self.img_bridge.imgmsg_to_cv2(img) 
+            self.dash_cam = cam.copy()
+
         def format_frame(self, frame):
             row, col, _ = frame.shape
             _max = max(col, row)
@@ -89,14 +99,8 @@ class LightDetector:
 
 if __name__ == "__main__":
     detector = LightDetector(True)
-    rospy.init_node("traffic_monitor")
-    cam_port =  'nvarguscamerasrc !  video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=60/1 ! nvvidconv flip-method=0 ! video/x-raw, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink drop=true'  
-    camera = cv2.VideoCapture(cam_port)
-    # if ~camera.isOpened():
-    #    print('Could not read from camera')  
-    #    exit()
-    while True: 
-        ret, frame= camera.read()
+    while (not rospy.is_shutdown()): 
+        frame= detector.dash_cam
         frame_yolo = detector.format_frame(frame)
         preds = detector.detect_lights(frame_yolo)
         class_ids, confidences, boxes = detector.wrap_detection(frame_yolo, preds[0])
@@ -105,10 +109,9 @@ if __name__ == "__main__":
             cv2.rectangle(frame, box, color, 2)
             cv2.rectangle(frame, (box[0], box[1] - 20), (box[0] + box[2], box[1]), color, -1)
             cv2.putText(frame, detector._classes[classid], (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0,0,0))
-        
-        #cv2.imshow("output", frame)
+        cv2.imshow("output", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        detector.rate.sleep()
 
-    camera.release()
     cv2.destroyAllWindows()
