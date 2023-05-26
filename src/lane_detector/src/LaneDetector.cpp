@@ -15,6 +15,7 @@ class LaneDetector{
         KalmanFilter center_estimator;
         // Images states used in lane detection
         Mat edgeImg, lineImg;
+        Mat structuring_element = getStructuringElement(MORPH_ELLIPSE,Size(3,3));
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
         Vec4i centerLine;
         // Coordinate that represents the center of given lane
@@ -63,7 +64,7 @@ void LaneDetector::init_kf(){
     center_estimator = KalmanFilter(2,2);
     setIdentity(center_estimator.measurementMatrix);
     setIdentity(center_estimator.processNoiseCov, Scalar::all(1e-5));
-    setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-3));
+    setIdentity(center_estimator.measurementNoiseCov, Scalar::all(1e-5));
     setIdentity(center_estimator.errorCovPost, Scalar::all(1));
 }
 
@@ -93,6 +94,9 @@ void LaneDetector::load_frame(Mat cameraFrame){
     Mat grayScale, thresholded;
     cvtColor(cameraFrame,grayScale,COLOR_BGR2GRAY);
     threshold(grayScale, thresholded, 75, 255, THRESH_BINARY_INV);
+    morphologyEx(thresholded,thresholded,MORPH_OPEN,structuring_element);
+    // imshow("Thresholded", thresholded);
+    // waitKey(1);
     Canny(thresholded,edgeImg,40,150);
 }
 
@@ -102,10 +106,10 @@ void LaneDetector::find_lanes(){
     lineImg  = mask;
     cvtColor(lineImg,lineImg,COLOR_GRAY2BGR);
     vector<Point> ROI = {
-        Point(415,650),
-        Point(415,600),
-        Point(863,600),
-        Point(863,650)
+        Point(330,719),
+        Point(330,669),
+        Point(909,669),
+        Point(909,719)
     };
     fillPoly(mask,ROI,(255,255,255));
     // imshow("Mask", mask);
@@ -114,26 +118,30 @@ void LaneDetector::find_lanes(){
     // waitKey(1);
     bitwise_and(mask,edgeImg,edgeImg);
     vector<Vec4i> lines;
-    HoughLinesP(edgeImg,lines,2,CV_PI/180,10,10,5);
+    HoughLinesP(edgeImg,lines,2,CV_PI/180,4,10,5);
     vector<float> x;
     for(auto &lineP: lines){
         x.push_back(lineP[0]);
-        x.push_back(lineP[3]);
+        x.push_back(lineP[2]);
+        line(lineImg,Point(lineP[0],lineP[1]),Point(lineP[2],lineP[3]),Scalar(120,120,0),10);
+
     }
-    float average_x = average(x);
-    //cout << "average_x" << average_x << endl;
-    center = Point2f(round(average_x),round(lineImg.rows*(1.0/1.2)));
+    if(x.size() == 0){
+        center = Point2f(round(lineImg.cols/2),round(lineImg.rows*(1.0/1.2)));
+    }else{
+        float average_x = average(x);
+        center = Point2f(round(average_x),round(lineImg.rows*(1.0/1.2)));
+    }
     circle(lineImg,center,15,Scalar(0,0,255),-1);
 }
 
 void LaneDetector::display(Mat cameraFrame){
     circle(lineImg,predictedCenter,15,Scalar(0,255,0),-1);
     line(lineImg,Point(640,0),Point(640,719),Scalar(0,120,120),10);
-    // Blend the lineImg of detected frame with camera feed for live visualization
     addWeighted(cameraFrame,1,lineImg,0.4,0,cameraFrame);
-    namedWindow("Lane Detector");
-    imshow("Lane Detector", cameraFrame);
-    
+    //overlay_writer.write(cameraFrame);
+    // namedWindow("Lane Detector");
+    // imshow("Lane Detector", cameraFrame);
 }
 
 #endif

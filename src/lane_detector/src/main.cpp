@@ -16,7 +16,7 @@
 using namespace std;
 using namespace cv;
 
-int nodeRate = 15;
+int nodeRate = 50;
 Mat frame, msg;
 std_msgs::Float32 output;
 
@@ -44,7 +44,7 @@ int main(int argc, char** argv){
             lanes.load_frame(frame);
             lanes.find_lanes();
             lanes.predict_center();
-            lanes.display(frame);
+            //lanes.display(frame);
             output.data = lanes.getWidth()/2-lanes.getCenterx();
             pixelsToCenter.publish(output);
             if(waitKey(1)== 27){
