@@ -35,10 +35,7 @@ class LightDetector:
             self.dash_cam = cam.copy()
 
         def format_frame(self, frame):
-            row, col, _ = frame.shape
-            _max = max(col, row)
-            result = np.zeros((_max, _max, 3), np.uint8)
-            result[0:row, 0:col] = frame
+            result = cv2.resize(frame, [640,640], interpolation = cv2.INTER_AREA)
             return result
         
         def detect_lights(self, frame):
@@ -106,10 +103,10 @@ if __name__ == "__main__":
         class_ids, confidences, boxes = detector.wrap_detection(frame_yolo, preds[0])
         for (classid, confidence, box) in zip(class_ids, confidences, boxes):
             color = detector._display_colors[int(classid) % len(detector._display_colors)]
-            cv2.rectangle(frame, box, color, 2)
-            cv2.rectangle(frame, (box[0], box[1] - 20), (box[0] + box[2], box[1]), color, -1)
-            cv2.putText(frame, detector._classes[classid], (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0,0,0))
-        cv2.imshow("output", frame)
+            cv2.rectangle(frame_yolo, box, color, 2)
+            cv2.rectangle(frame_yolo, (box[0], box[1] - 20), (box[0] + box[2], box[1]), color, -1)
+            cv2.putText(frame_yolo, detector._classes[classid], (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0,0,0))
+        cv2.imshow("output", frame_yolo)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         detector.rate.sleep()
