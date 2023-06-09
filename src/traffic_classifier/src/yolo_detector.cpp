@@ -29,8 +29,8 @@ class LightDetector {
             _input_width = 640;
             _input_height = 640;
             _threshold = {0.2, 0.4, 0.4}; // score, nms, confidence
-            _classes = {"changing-gy", "changing-rg", "changing-ry", "forward", "line", "stop", "traffic-green", "traffic-red", "traffic-yellow", "turn-right"};
-            _display_colors = {cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), cv::Scalar(255, 255, 255), cv::Scalar(100, 100, 100), cv::Scalar(0, 0, 128), cv::Scalar(0, 255, 0), cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255), cv::Scalar(255, 0, 0)};
+            _classes = {"construction", "forward", "give_way", "green", "left", "red", "right", "roundabout", "stop", "yellow"};
+            _display_colors = {cv::Scalar(128, 255, 128), cv::Scalar(255, 128, 255), cv::Scalar(85, 170, 255), cv::Scalar(255, 255, 255), cv::Scalar(100, 100, 100), cv::Scalar(0, 0, 128), cv::Scalar(0, 255, 0), cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255), cv::Scalar(255, 0, 0)};
             classifier = cv::dnn::readNetFromONNX("/home/puzzlebot/traffic-v2.onnx");
             prev_color = 3;
             if (use_cuda) {

@@ -17,8 +17,8 @@ class LightDetector:
             self._input_width = 640
             self._input_height = 640
             self._threshold = [0.2,0.4,0.4] # score, nms, confidence
-            self._classes = ['changing-gy', 'changing-rg', 'changing-ry', 'forward', 'line', 'stop', 'traffic-green', 'traffic-red', 'traffic-yellow', 'turn-right']                                                                                  
-            self._display_colors = [(0, 0, 0), (0, 0, 0), (0, 0, 0), (255, 255, 255),(100,100,100),(0,0,128),(0,255,0),(0,0,255),(0,255,255),(255,0,0)]
+            self._classes = ['construction', 'forward', 'give_way', 'green', 'left', 'red', 'right', 'roundabout', 'stop', 'yellow']                                                                                  
+            self._display_colors = [(128, 255, 128), (255, 128, 255), (85, 170, 255), (255, 255, 255),(100,100,100),(0,0,128),(0,255,0),(0,0,255),(0,255,255),(255,0,0)]
             self.classifier = cv2.dnn.readNetFromONNX("/home/puzzlebot/traffic-v2.onnx")
             self.prev_color = 3
             if use_cuda:
