@@ -20,12 +20,18 @@ class LaneDetector{
         Vec4i centerLine;
         // Coordinate that represents the center of given lane
         Point2f center, predictedCenter;
+        // For detecting intersections
+        float curAvgSlope;
+        float avgAvgSlope = 0;
+        float varianceAvgSlope = 0;
+        int frameCount = 0;
         //Frame dimensions
         int width, height;
         // Auxiliary functions
         static float average(vector<float> input_vector);
 
     public:
+        bool intersectionLikely = false;
         LaneDetector();
         LaneDetector(Mat initFrame);
         float getCenterx();
@@ -120,12 +126,23 @@ void LaneDetector::find_lanes(){
     vector<Vec4i> lines;
     HoughLinesP(edgeImg,lines,2,CV_PI/180,4,10,5);
     vector<float> x;
-    for(auto &lineP: lines){
+    curAvgSlope = 0;
+    for(int i=0; i<lines.size(); i++) {
+        auto &lineP = lines[i];
+        float curSlope = (lineP[3] - lineP[1]) / (lineP[2] - lineP[0]); 
+        curAvgSlope = (curAvgSlope + curSlope)/ (i+1);
         x.push_back(lineP[0]);
         x.push_back(lineP[2]);
         line(lineImg,Point(lineP[0],lineP[1]),Point(lineP[2],lineP[3]),Scalar(120,120,0),10);
-
     }
+    frameCount++;
+    avgAvgSlope = (avgAvgSlope + curAvgSlope) / frameCount;
+    float delta = avgAvgSlope - curAvgSlope;
+    varianceAvgSlope = (varianceAvgSlope + pow(delta,2)) / frameCount;
+
+    if (abs(delta) > sqrt(varianceAvgSlope)*3) intersectionLikely = true; // check for deviation greater than 3 sigmas (0.3% chance of appearing in normal distribution)
+    else intersectionLikely = false;
+
     if(x.size() == 0){
         center = Point2f(round(lineImg.cols/2),round(lineImg.rows*(1.0/1.2)));
     }else{

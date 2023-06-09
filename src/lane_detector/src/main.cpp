@@ -7,6 +7,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Bool.h>
 // OpenCV libraries
 #include "opencv2/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -19,6 +20,7 @@ using namespace cv;
 int nodeRate = 50;
 Mat frame, msg;
 std_msgs::Float32 output;
+std_msgs::Bool intersectionLikely;
 
 void receive_img(const sensor_msgs::ImageConstPtr &img) {
     msg = cv_bridge::toCvShare(img,"bgr8")->image;
@@ -31,6 +33,7 @@ int main(int argc, char** argv){
     ros::NodeHandle handler;
     ros::Rate rate(nodeRate);
     ros::Publisher pixelsToCenter = handler.advertise<std_msgs::Float32>("/line_error", 10);
+    ros::Publisher intersectionLikelyPub = handler.advertise<std_msgs::Bool>("/intersection_likely", 10);
     image_transport::ImageTransport imageHandler(handler);
 
     image_transport::Subscriber camSub = imageHandler.subscribe("/video_source/dash_cam", 10, receive_img);
@@ -43,9 +46,11 @@ int main(int argc, char** argv){
         else{
             lanes.load_frame(frame);
             lanes.find_lanes();
+            intersectionLikely.data = lanes.intersectionLikely;
             lanes.predict_center();
             //lanes.display(frame);
             output.data = lanes.getWidth()/2-lanes.getCenterx();
+            intersectionLikelyPub.publish(intersectionLikely);
             pixelsToCenter.publish(output);
             if(waitKey(1)== 27){
                 break;
