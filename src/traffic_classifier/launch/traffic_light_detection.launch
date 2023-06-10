@@ -4,7 +4,6 @@
 	<arg name="input_height" default="720"/>
 	<arg name="input_codec" default="unknown"/>
 	<arg name="input_loop" default="0"/>
-    <node name="traffic_classifier" pkg="traffic_classifier" type="yolo_detector.cpp"  output="screen"/>
     <node pkg="lane_detector" type="video_source" name="video_source" output="screen">
 		<param name="resource" value="$(arg input)"/>
 		<param name="width" value="$(arg input_width)"/>
@@ -12,4 +11,5 @@
 		<param name="loop" value="$(arg input_loop)"/>
 		<param name="flip" value="none"/>
 	</node>
+    <node name="traffic_classifier" pkg="traffic_classifier" type="traffic_classifier"  output="screen"/>
 </launch>

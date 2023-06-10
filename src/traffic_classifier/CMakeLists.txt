@@ -22,11 +22,20 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV 4.5.5 REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(jetson-utils REQUIRED)
+find_package(jetson-inference REQUIRED)
+find_package(CUDA REQUIRED)
+include_directories(${catkin_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
+
+link_directories(/usr/lib/aarch64-linux-gnu/tegra)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
 # catkin_python_setup()
+
+add_definitions(-DROS1 -DROS_DISTRO=${ROS_DISTRO})
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -139,7 +148,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/traffic_classifier_node.cpp)
+add_executable(traffic_classifier src/yolo_detector.cpp)
+target_link_libraries(traffic_classifier ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
