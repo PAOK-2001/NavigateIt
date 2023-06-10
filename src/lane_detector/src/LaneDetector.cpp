@@ -20,17 +20,13 @@ class LaneDetector{
         Vec4i centerLine;
         // Coordinate that represents the center of given lane
         Point2f center, predictedCenter;
-        // For detecting intersections
-        float curAvgSlope;
-        float avgAvgSlope = 0;
-        float varianceAvgSlope = 0;
-        int frameCount = 0;
         //Frame dimensions
         int width, height;
         // Auxiliary functions
         static float average(vector<float> input_vector);
 
     public:
+        int lineCount = 0;
         bool intersectionLikely = false;
         LaneDetector();
         LaneDetector(Mat initFrame);
@@ -99,7 +95,7 @@ float LaneDetector::average(vector<float> input_vector){
 void LaneDetector::load_frame(Mat cameraFrame){
     Mat grayScale, thresholded;
     cvtColor(cameraFrame,grayScale,COLOR_BGR2GRAY);
-    threshold(grayScale, thresholded, 75, 255, THRESH_BINARY_INV);
+    threshold(grayScale, thresholded, 110, 255, THRESH_BINARY_INV);
     morphologyEx(thresholded,thresholded,MORPH_OPEN,structuring_element);
     // imshow("Thresholded", thresholded);
     // waitKey(1);
@@ -107,8 +103,10 @@ void LaneDetector::load_frame(Mat cameraFrame){
 }
 
 void LaneDetector::find_lanes(){
+    Mat inter_edgeImg = edgeImg.clone();
     Mat mask = edgeImg.clone();
     mask     = Scalar(0,0,0);
+    Mat inter_mask = mask.clone();
     lineImg  = mask;
     cvtColor(lineImg,lineImg,COLOR_GRAY2BGR);
     vector<Point> ROI = {
@@ -117,30 +115,34 @@ void LaneDetector::find_lanes(){
         Point(909,669),
         Point(909,719)
     };
+    vector<Point> inter_ROI = {
+        Point(330,669),
+        Point(330,619),
+        Point(909,619),
+        Point(909,669)
+    };
     fillPoly(mask,ROI,(255,255,255));
+    fillPoly(inter_mask,inter_ROI,(255,255,255));
     // imshow("Mask", mask);
     // waitKey(1);
     // imshow("Edge", edgeImg);
     // waitKey(1);
     bitwise_and(mask,edgeImg,edgeImg);
+    bitwise_and(inter_mask,inter_edgeImg,inter_edgeImg);
     vector<Vec4i> lines;
+    vector<Vec4i> inter_lines;
     HoughLinesP(edgeImg,lines,2,CV_PI/180,4,10,5);
+    HoughLinesP(inter_edgeImg,inter_lines,2,CV_PI/180,4,10,5);
     vector<float> x;
-    curAvgSlope = 0;
     for(int i=0; i<lines.size(); i++) {
         auto &lineP = lines[i];
-        float curSlope = (lineP[3] - lineP[1]) / (lineP[2] - lineP[0]); 
-        curAvgSlope = (curAvgSlope + curSlope)/ (i+1);
         x.push_back(lineP[0]);
         x.push_back(lineP[2]);
         line(lineImg,Point(lineP[0],lineP[1]),Point(lineP[2],lineP[3]),Scalar(120,120,0),10);
     }
-    frameCount++;
-    avgAvgSlope = (avgAvgSlope + curAvgSlope) / frameCount;
-    float delta = avgAvgSlope - curAvgSlope;
-    varianceAvgSlope = (varianceAvgSlope + pow(delta,2)) / frameCount;
+    lineCount = inter_lines.size();
 
-    if (abs(delta) > sqrt(varianceAvgSlope)*3) intersectionLikely = true; // check for deviation greater than 3 sigmas (0.3% chance of appearing in normal distribution)
+    if (lineCount == 0 || lineCount >= 15) intersectionLikely = true; // check for deviation greater than 3 sigmas (0.3% chance of appearing in normal distribution)
     else intersectionLikely = false;
 
     if(x.size() == 0){

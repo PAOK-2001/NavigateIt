@@ -1,36 +1,38 @@
+#include <vector>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include "cv_bridge/cv_bridge.h"
 #include <sensor_msgs/Image.h>
+#include <rocon_std_msgs/StringArray.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn/dnn.hpp>
+#define LIGHT_HEIGHT 140
+#define SIGN_HEIGHT 80
 
-class LightDetector {
+class SignDetector {
     private:
-        ros::Publisher light_publisher;
+        ros::Publisher sign_publisher;
         ros::Subscriber img_subscriber;
         int _input_width;
         int _input_height;
         std::vector<double> _threshold;
         cv::dnn::Net classifier;
-        int prev_color;
     public:
         ros::Rate* rate;
         ros::NodeHandle nh;
         std::vector<std::string> _classes;
         std::vector<cv::Scalar> _display_colors;
         cv::Mat dash_cam;
-        LightDetector(bool use_cuda) {
-            light_publisher = nh.advertise<std_msgs::String>("/traffic_light", 1);
-            rate = new ros::Rate(15);
-            img_subscriber = nh.subscribe("/video_source/dash_cam", 1, &LightDetector::receive_img, this);
+        SignDetector(bool use_cuda) {
+            sign_publisher = nh.advertise<rocon_std_msgs::StringArray>("/traffic_sign", 1);
+            rate = new ros::Rate(4);
+            img_subscriber = nh.subscribe("/video_source/dash_cam", 1, &SignDetector::receive_img, this);
             _input_width = 640;
             _input_height = 640;
             _threshold = {0.2, 0.4, 0.4}; // score, nms, confidence
             _classes = {"construction", "forward", "give_way", "green", "left", "red", "right", "roundabout", "stop", "yellow"};
             _display_colors = {cv::Scalar(128, 255, 128), cv::Scalar(255, 128, 255), cv::Scalar(85, 170, 255), cv::Scalar(255, 255, 255), cv::Scalar(100, 100, 100), cv::Scalar(0, 0, 128), cv::Scalar(0, 255, 0), cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255), cv::Scalar(255, 0, 0)};
             classifier = cv::dnn::readNetFromONNX("/home/puzzlebot/best_2.onnx");
-            prev_color = 3;
             if (use_cuda) {
                 std::cout << "Running classifier on CUDA" << std::endl;
                 classifier.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
@@ -53,7 +55,7 @@ class LightDetector {
             return result;
         }
 
-        cv::Mat detect_lights(const cv::Mat& frame) {
+        cv::Mat detect_signs(const cv::Mat& frame) {
             cv::Mat blob = cv::dnn::blobFromImage(frame, 1 / 255.0, cv::Size(_input_width, _input_height), true, false);
             classifier.setInput(blob);
             cv::Mat preds = classifier.forward();
@@ -69,6 +71,8 @@ class LightDetector {
 
             double x_factor = image_width / static_cast<double>(_input_width);
             double y_factor = image_height / static_cast<double>(_input_height);
+            std::vector<std::string> signs;
+            rocon_std_msgs::StringArray msg;
 
             for (int r = 0; r < rows; ++r) {
                 float confidence = data[4];
@@ -81,15 +85,6 @@ class LightDetector {
                     int class_id = max_indx.x;
 
                     if (max_class_score > 0.25) {
-                        confidences.push_back(confidence);
-                        class_ids.push_back(class_id);
-                        
-                        std_msgs::String msg;
-                        msg.data = _classes[class_ids[0]];
-                        if (prev_color != class_ids[0]) {
-                            light_publisher.publish(msg);
-                            prev_color = class_ids[0];
-                        }
 
                         float x = data[0];
                         float y = data[1];
@@ -101,6 +96,12 @@ class LightDetector {
                         int width = static_cast<int>(w * x_factor);
                         int height = static_cast<int>(h * y_factor);
 
+                        bool isLight = class_id == 3 || class_id == 5 || class_id == 9; 
+
+                        if (isLight && height < LIGHT_HEIGHT || height < SIGN_HEIGHT) continue;
+
+                        class_ids.push_back(class_id);
+                        confidences.push_back(confidence);
                         boxes.push_back(cv::Rect(left, top, width, height));
                     }
                 }
@@ -116,10 +117,13 @@ class LightDetector {
 
             for (int i : indexes) {
                 result_class_ids.push_back(class_ids[i]);
+                signs.push_back(_classes[class_ids[i]]);
                 result_confidences.push_back(confidences[i]);
                 result_boxes.push_back(boxes[i]);
             }
 
+            msg.strings = signs;
+            sign_publisher.publish(msg);
             class_ids = result_class_ids;
             confidences = result_confidences;
             boxes = result_boxes;
@@ -128,7 +132,7 @@ class LightDetector {
  
 int main(int argc, char** argv) {
     ros::init(argc, argv, "traffic_detector");
-    LightDetector detector(true);
+    SignDetector detector(true);
 
 
     while (ros::ok()) {
@@ -139,7 +143,7 @@ int main(int argc, char** argv) {
             continue;
         }
         cv::Mat frame_yolo = detector.format_frame(frame);
-        cv::Mat preds = detector.detect_lights(frame_yolo);
+        cv::Mat preds = detector.detect_signs(frame_yolo);
 
         std::vector<int> class_ids;
         std::vector<float> confidences;
@@ -147,7 +151,7 @@ int main(int argc, char** argv) {
 
         detector.wrap_detection(frame_yolo, preds, class_ids, confidences, boxes);
 
-        for (size_t i = 0; i < class_ids.size(); ++i) {
+        /*for (size_t i = 0; i < class_ids.size(); ++i) {
             int class_id = class_ids[i];
             float confidence = confidences[i];
             cv::Rect box = boxes[i];
@@ -164,7 +168,7 @@ int main(int argc, char** argv) {
 
         if (cv::waitKey(1) == 'q') {
             break;
-        }
+        }*/
 
         detector.rate->sleep();
         ros::spinOnce();

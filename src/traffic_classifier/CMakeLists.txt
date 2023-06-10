@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   cv_bridge
   sensor_msgs
+  rocon_std_msgs
   vision_msgs
   image_transport
 )

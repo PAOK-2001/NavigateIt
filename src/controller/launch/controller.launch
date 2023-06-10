@@ -15,6 +15,7 @@
 		<param name="flip" value="none"/>
 	</node>
 	<node pkg="lane_detector" type="lane_detector" name="lane_detector" output="screen"/>
-    <node name="controller" pkg="controller" type="controller"/>
+    <node name="controller" pkg="controller" type="controller" output="screen"/>
+	<node name="traffic_classifier" pkg="traffic_classifier" type="traffic_classifier" output="screen"/>
 
 </launch>
