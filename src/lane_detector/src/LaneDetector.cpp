@@ -15,7 +15,7 @@ class LaneDetector{
         KalmanFilter center_estimator;
         // Images states used in lane detection
         Mat edgeImg, lineImg;
-        Mat structuring_element = getStructuringElement(MORPH_ELLIPSE,Size(3,3));
+        Mat structuring_element = getStructuringElement(MORPH_ELLIPSE,Size(7,7));
         // Lane lines in the format of a 4 integer vector such as  (x1, y1, x2, y2), which are the endpoint coordinates. 
         Vec4i centerLine;
         // Coordinate that represents the center of given lane
@@ -96,6 +96,7 @@ void LaneDetector::load_frame(Mat cameraFrame){
     Mat grayScale, thresholded;
     cvtColor(cameraFrame,grayScale,COLOR_BGR2GRAY);
     threshold(grayScale, thresholded, 110, 255, THRESH_BINARY_INV);
+    erode(thresholded,thresholded,structuring_element,Point(-1,-1),1);
     morphologyEx(thresholded,thresholded,MORPH_OPEN,structuring_element);
     // imshow("Thresholded", thresholded);
     // waitKey(1);
@@ -116,10 +117,10 @@ void LaneDetector::find_lanes(){
         Point(909,719)
     };
     vector<Point> inter_ROI = {
-        Point(330,669),
-        Point(330,619),
-        Point(909,619),
-        Point(909,669)
+        Point(330,670),
+        Point(330,620),
+        Point(909,620),
+        Point(909,670)
     };
     fillPoly(mask,ROI,(255,255,255));
     fillPoly(inter_mask,inter_ROI,(255,255,255));
@@ -142,7 +143,7 @@ void LaneDetector::find_lanes(){
     }
     lineCount = inter_lines.size();
 
-    if (lineCount == 0 || lineCount >= 15) intersectionLikely = true; // check for deviation greater than 3 sigmas (0.3% chance of appearing in normal distribution)
+    if (lineCount == 0 || lineCount >= 10) intersectionLikely = true; // check for deviation greater than 3 sigmas (0.3% chance of appearing in normal distribution)
     else intersectionLikely = false;
 
     if(x.size() == 0){

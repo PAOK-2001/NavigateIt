@@ -43,7 +43,7 @@ void receive_line_error(const std_msgs::Float32 &err_msg){
 }
 
 void receive_intersection_likely(const std_msgs::Int32 &int_msg) {
-    intersection_likely = int_msg.data >= 15;
+    intersection_likely = int_msg.data >= 20;
 }
 
 int main(int argc, char *argv[]) {
@@ -91,9 +91,9 @@ int main(int argc, char *argv[]) {
             if (intersection_likely) {
                 //car movement without lane
                 if (last_dir == "left") {
-                    out = angular_max / 3;
+                    out = angular_max / 3.5;
                 } else if (last_dir == "right") {
-                    out = -angular_max / 3;
+                    out = -angular_max / 3.5;
                 } else {
                     out = 0;
                 }

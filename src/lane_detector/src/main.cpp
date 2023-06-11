@@ -49,7 +49,7 @@ int main(int argc, char** argv){
         else{
             lanes.load_frame(frame);
             lanes.find_lanes();
-            intersectionCount = lanes.intersectionLikely ? min(intersectionCount+1,50) : max(intersectionCount-1,0);
+            intersectionCount = lanes.intersectionLikely ? min(intersectionCount+1,75) : max(intersectionCount-1,0);
             intersectionLikely.data = intersectionCount;
             lineCount.data = lanes.lineCount;
             lanes.predict_center();
